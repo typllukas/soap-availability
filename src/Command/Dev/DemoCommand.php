@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Command\Dev;
 
+use App\Exception\SoapCallFailedException;
+use App\NumberConversion\NumberConversionClient;
 use App\StockAvailability\Client\StockAvailabilityClient;
 use App\StockAvailability\Client\StockAvailabilityFaultException;
 use App\StockAvailability\Contract\CreateOrderRequest;
@@ -20,7 +22,8 @@ use function str_pad;
 
 #[AsCommand(
     name: 'soap-availability:dev:demo',
-    description: 'Call both operations of the stock availability service and trigger a fault.',
+    description: 'Call both operations of the stock availability service, trigger a fault, '
+        . 'and call the public NumberConversion service.',
 )]
 final class DemoCommand extends Command
 {
@@ -30,6 +33,7 @@ final class DemoCommand extends Command
 
     public function __construct(
         private readonly StockAvailabilityClient $stockAvailabilityClient,
+        private readonly NumberConversionClient $numberConversionClient,
         ?string $name = null,
     ) {
         parent::__construct($name);
@@ -72,6 +76,19 @@ final class DemoCommand extends Command
                 $exception->getFault()->productCode ?? '-',
             ));
             $io->writeln('  ' . ($this->stockAvailabilityClient->getLastResponseXml() ?? '(no response recorded)'));
+        }
+
+        try {
+            $this->writeStep($io, 'NumberToDollars', sprintf(
+                '%s -> %s  (SOAP 1.2, dataaccess.com)',
+                $order->totalPrice,
+                $this->numberConversionClient->numberToDollars($order->totalPrice),
+            ));
+        } catch (SoapCallFailedException $exception) {
+            $this->writeStep($io, 'NumberToDollars', sprintf(
+                'unavailable (%s) - dataaccess.com is a free public service, everything above ran locally',
+                $exception->getMessage(),
+            ));
         }
 
         return Command::SUCCESS;
