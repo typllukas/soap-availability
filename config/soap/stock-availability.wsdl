@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="StockAvailability"
+    targetNamespace="urn:soap-availability:stock:v1"
+    xmlns="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:tns="urn:soap-availability:stock:v1">
+
+    <documentation>
+        Stock availability and prices for partner integrations. Document/literal wrapped, SOAP 1.1.
+    </documentation>
+
+    <types>
+        <!-- xmlns:tns is declared again so the schema is valid on its own, see StockAvailabilitySchemaValidator -->
+        <xsd:schema targetNamespace="urn:soap-availability:stock:v1" elementFormDefault="qualified"
+            xmlns:tns="urn:soap-availability:stock:v1">
+
+            <!-- StockAvailabilityContractTest keeps these values and the PHP enum in step. -->
+            <xsd:simpleType name="StockAvailabilityFaultCode">
+                <xsd:restriction base="xsd:string">
+                    <xsd:enumeration value="UNKNOWN_PRODUCT"/>
+                    <xsd:enumeration value="INSUFFICIENT_STOCK"/>
+                    <xsd:enumeration value="INVALID_REQUEST"/>
+                </xsd:restriction>
+            </xsd:simpleType>
+
+            <xsd:complexType name="ProductAvailability">
+                <xsd:sequence>
+                    <xsd:element name="productCode" type="xsd:string"/>
+                    <xsd:element name="quantity" type="xsd:int"/>
+                    <xsd:element name="price" type="xsd:decimal"/>
+                    <xsd:element name="currency" type="xsd:string"/>
+                    <xsd:element name="available" type="xsd:boolean"/>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:complexType name="OrderItem">
+                <xsd:sequence>
+                    <xsd:element name="productCode" type="xsd:string"/>
+                    <xsd:element name="quantity">
+                        <xsd:simpleType>
+                            <xsd:restriction base="xsd:int">
+                                <xsd:minInclusive value="1"/>
+                            </xsd:restriction>
+                        </xsd:simpleType>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:complexType>
+
+            <xsd:element name="getStockAvailability">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="partnerId" type="xsd:string"/>
+                        <xsd:element name="productCode" type="xsd:string" maxOccurs="unbounded"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="getStockAvailabilityResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="product" type="tns:ProductAvailability" minOccurs="0" maxOccurs="unbounded"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="createOrder">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="partnerId" type="xsd:string"/>
+                        <xsd:element name="item" type="tns:OrderItem" maxOccurs="unbounded"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="createOrderResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="orderNumber" type="xsd:string"/>
+                        <xsd:element name="totalPrice" type="xsd:decimal"/>
+                        <xsd:element name="currency" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="StockAvailabilityFault">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="code" type="tns:StockAvailabilityFaultCode"/>
+                        <xsd:element name="productCode" type="xsd:string" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+        </xsd:schema>
+    </types>
+
+    <message name="getStockAvailabilityRequest"><part name="parameters" element="tns:getStockAvailability"/></message>
+    <message name="getStockAvailabilityResponse"><part name="parameters" element="tns:getStockAvailabilityResponse"/></message>
+    <message name="createOrderRequest"><part name="parameters" element="tns:createOrder"/></message>
+    <message name="createOrderResponse"><part name="parameters" element="tns:createOrderResponse"/></message>
+    <message name="StockAvailabilityFaultMessage"><part name="fault" element="tns:StockAvailabilityFault"/></message>
+
+    <portType name="StockAvailabilityPortType">
+        <operation name="getStockAvailability">
+            <documentation>
+                Current quantity and price for each requested product code. Faults with UNKNOWN_PRODUCT
+                if any code is not in the catalog.
+            </documentation>
+            <input message="tns:getStockAvailabilityRequest"/>
+            <output message="tns:getStockAvailabilityResponse"/>
+            <fault name="StockAvailabilityFault" message="tns:StockAvailabilityFaultMessage"/>
+        </operation>
+        <operation name="createOrder">
+            <documentation>
+                Places an order and returns its number and total price. Faults with UNKNOWN_PRODUCT for a
+                code that does not exist, INSUFFICIENT_STOCK when a quantity is above the stock, and
+                INVALID_REQUEST when the message does not match the schema.
+            </documentation>
+            <input message="tns:createOrderRequest"/>
+            <output message="tns:createOrderResponse"/>
+            <fault name="StockAvailabilityFault" message="tns:StockAvailabilityFaultMessage"/>
+        </operation>
+    </portType>
+
+    <binding name="StockAvailabilityBinding" type="tns:StockAvailabilityPortType">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <operation name="getStockAvailability">
+            <soap:operation soapAction="urn:soap-availability:stock:v1#getStockAvailability"/>
+            <input><soap:body use="literal"/></input>
+            <output><soap:body use="literal"/></output>
+            <fault name="StockAvailabilityFault"><soap:fault name="StockAvailabilityFault" use="literal"/></fault>
+        </operation>
+        <operation name="createOrder">
+            <soap:operation soapAction="urn:soap-availability:stock:v1#createOrder"/>
+            <input><soap:body use="literal"/></input>
+            <output><soap:body use="literal"/></output>
+            <fault name="StockAvailabilityFault"><soap:fault name="StockAvailabilityFault" use="literal"/></fault>
+        </operation>
+    </binding>
+
+    <service name="StockAvailabilityService">
+        <port name="StockAvailabilityPort" binding="tns:StockAvailabilityBinding">
+            <!-- a default for reading the file directly, serveWsdl() rewrites it from the request -->
+            <soap:address location="http://localhost:8082/stock-availability"/>
+        </port>
+    </service>
+</definitions>
