@@ -1,0 +1,39 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      # pinned to a commit, an action tag is mutable
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.5'
+          extensions: soap, ctype, iconv, dom, filter
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+
+      # phpstan.neon reads the container from var/cache/dev
+      - name: Warm up the dev container
+        run: php bin/console cache:warmup --env=dev
+
+      - name: Coding standard
+        run: vendor/bin/phpcs
+
+      - name: Static analysis
+        run: vendor/bin/phpstan analyse --no-progress
+
+      - name: Rector
+        run: vendor/bin/rector process --dry-run --no-progress-bar
+
+      - name: Tests
+        run: vendor/bin/phpunit
