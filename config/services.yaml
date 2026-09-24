@@ -7,3 +7,13 @@ services:
 
     App\:
         resource: '../src/'
+        exclude:
+            - '../src/DTO/'
+            - '../src/StockAvailability/Contract/'
+
+    stock_availability.soap_client:
+        class: SoapClient
+        factory: ['@App\StockAvailability\Client\StockAvailabilitySoapClientFactory', 'create']
+
+    App\StockAvailability\Client\StockAvailabilityClient:
+        arguments: ['@stock_availability.soap_client']
